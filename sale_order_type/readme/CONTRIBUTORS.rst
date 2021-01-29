@@ -35,4 +35,12 @@
 
   * Iván Todorovich <ivan.todorovich@druidoo.io>
 
+* `Therp BV <https://therp.nl>`_
+
+  * Nikos Tsirintanis <ntsirintanis@therp.nl>
+
+* `Sunflower IT <https://sunflowerweb.nl>`_
+
+  * Tom Blauwendraat <info@sunflowerweb.nl>
+
 Do not contact contributors directly about support or help with technical issues.

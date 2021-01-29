@@ -1,5 +1,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 # Copyright 2020 Tecnativa - Pedro M. Baeza
+# Copyright 2021 Therp BV <https://therp.nl>.
+# Copyright 2021 Sunflower IT < https://sunflowerweb.nl>.
 
 from odoo import api, fields, models
 
@@ -74,10 +76,32 @@ class SaleOrder(models.Model):
     @api.model
     def create(self, vals):
         if vals.get("name", "/") == "/" and vals.get("type_id"):
-            sale_type = self.env["sale.order.type"].browse(vals["type_id"])
-            if sale_type.sequence_id:
-                vals["name"] = sale_type.sequence_id.next_by_id()
+            next_sequence = self._get_next_sequence(vals["type_id"])
+            if next_sequence:
+                vals["name"] = next_sequence
         return super(SaleOrder, self).create(vals)
+
+    def write(self, vals):
+        """ Maintain proper sequencing when copying """
+        type_id = vals.get("type_id")
+        if not type_id:
+            return super(SaleOrder, self).write(vals)
+        # Store orders that type_id has changed
+        updated_orders = self.env["sale.order"]
+        for this in self:
+            # type_id remains the same.
+            if this.type_id.id == type_id:
+                continue
+            next_sequence = self._get_next_sequence(type_id)
+            # No next sequence for this type_id
+            if not next_sequence:
+                continue
+            # Change the name
+            new_vals = vals.copy()
+            new_vals["name"] = next_sequence
+            super(SaleOrder, this).write(new_vals)
+            updated_orders += this
+        return super(SaleOrder, self - updated_orders).write(vals)
 
     def _prepare_invoice(self):
         res = super(SaleOrder, self)._prepare_invoice()
@@ -86,6 +110,13 @@ class SaleOrder(models.Model):
         if self.type_id:
             res["sale_type_id"] = self.type_id.id
         return res
+
+    def _get_next_sequence(self, type_id):
+        sale_type = self.env["sale.order.type"].browse(type_id)
+        sequence = False
+        if sale_type.sequence_id:
+            sequence = sale_type.sequence_id.next_by_id()
+        return sequence
 
 
 class SaleOrderLine(models.Model):

@@ -160,3 +160,58 @@ class TestSaleOrderType(common.TransactionCase):
         order.write({"order_line": [(0, 0, sale_line_dict)]})
         order.onchange_type_id()
         self.assertEqual(order.type_id.route_id, order.order_line[1].route_id)
+
+    def test_sale_order_copy_and_write(self):
+        order = self.create_sale_order()
+        self.assertEqual(order.name, "TSO001")
+        # Copy this one
+        new_order = order.copy()
+        self.assertEqual(new_order.name, "TSO002")
+        # Create new sequence and type
+        sequence = self.env["ir.sequence"].create(
+            {
+                "name": "Test Sales Order Copy",
+                "code": "sale.order",
+                "prefix": "CP0",
+                "padding": 1,
+            }
+        )
+        sale_type = self.sale_type_model.create(
+            {
+                "name": "Test Sale Order Type Copy",
+                "sequence_id": sequence.id,
+                "journal_id": self.journal.id,
+                "warehouse_id": self.warehouse.id,
+                "picking_policy": "one",
+                "payment_term_id": self.immediate_payment.id,
+                "pricelist_id": self.sale_pricelist.id,
+                "incoterm_id": self.free_carrier.id,
+            }
+        )
+        # Change sale type for copied order
+        new_order.write({"type_id": sale_type.id})
+        # See that name has changed
+        self.assertEqual(new_order.name, "CP01")
+        # Restore the original type and see
+        # sequence increasing
+        new_order.write({"type_id": self.sale_type.id})
+        self.assertEqual(new_order.name, "TSO003")
+        # Write again on the same order, and see nothing
+        # is changing
+        new_order.write({"type_id": self.sale_type.id})
+        self.assertEqual(new_order.name, "TSO003")
+        # Create a new type, with no sequence
+        sale_type_no_sequence = self.sale_type_model.create(
+            {
+                "name": "Test Sale Order Type No Sequence",
+                "journal_id": self.journal.id,
+                "warehouse_id": self.warehouse.id,
+                "picking_policy": "one",
+                "payment_term_id": self.immediate_payment.id,
+                "pricelist_id": self.sale_pricelist.id,
+                "incoterm_id": self.free_carrier.id,
+            }
+        )
+        # Write again, and see that name remains the same
+        new_order.write({"type_id": sale_type_no_sequence.id})
+        self.assertEqual(new_order.name, "TSO003")
